@@ -5,36 +5,50 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'firebase_options.dart';
 
-const Color darkBlue = Color.fromARGB(255, 18, 32, 47);
-const Color primaryColor = Color(0xFF6C63FF);
-const int messageLimit = 30;
+const Color darkBlue = Color(0xFF0D253F);
+const Color primaryColor = Color(0xFF128C7E);
+const Color secondaryColor = Color(0xFF25D366);
+const Color accentColor = Color(0xFFDCF8C6);
+const Color backgroundColor = Color(0xFFECE5DD);
+const messageLimit = 30;
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+void main() async {
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+  } catch (e, st) {
+    print(e);
+    print(st);
+  }
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   await FirebaseAuth.instance.signInAnonymously();
-  runApp(const MyApp());
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final DateFormat formatter = DateFormat('MM/dd HH:mm:SS');
+
+  MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
         primaryColor: primaryColor,
-        scaffoldBackgroundColor: darkBlue,
-        textTheme: const TextTheme(
+        accentColor: secondaryColor,
+        scaffoldBackgroundColor: backgroundColor,
+        textTheme: TextTheme(
           headlineSmall: TextStyle(
-            color: Colors.white,
+            color: Colors.black87,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
           titleMedium: TextStyle(
-            color: Colors.white70,
+            color: Colors.black54,
             fontSize: 16,
           ),
         ),
@@ -42,130 +56,148 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8.0),
           ),
-          hintStyle: const TextStyle(color: Colors.white54),
+          hintStyle: TextStyle(color: Colors.black38),
           filled: true,
-          fillColor: Colors.white24,
-        ),
-        listTileTheme: const ListTileThemeData(
-          textColor: Colors.white,
+          fillColor: Colors.white,
         ),
       ),
-      home: const ChatScreen(),
+      home: ChatScreen(),
     );
   }
 }
 
-class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+class ChatScreen extends StatelessWidget {
+  final TextEditingController _controller = TextEditingController();
+  final DateFormat formatter = DateFormat('MM/dd HH:mm:SS');
 
-  @override
-  _ChatScreenState createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
-  final DateFormat formatter = DateFormat('MM/dd HH:mm:ss');
-  final TextEditingController _messageController = TextEditingController();
+  ChatScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat App'),
+        title: Text('Chat App'),
         backgroundColor: primaryColor,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 16),
-            Text(
-              'Enter a new message',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'You can type a message into this field and hit the enter key '
-              'to add it to the stream. The security rules for the '
-              'Firestore database only allow certain words, though! Check '
-              'the comments in the code to the left for details.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            FractionallySizedBox(
-              widthFactor: 0.75,
-              child: TextField(
-                controller: _messageController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter your message and hit Enter',
-                ),
-                onSubmitted: (String value) {
-                  _sendMessage(value);
-                  _messageController.clear();
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'The latest messages',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('chat')
-                    .orderBy('timestamp', descending: true)
-                    .limit(messageLimit)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData) {
-                    return const Center(
-                      child: SizedBox(
-                        width: 50,
-                        height: 50,
-                        child: CircularProgressIndicator(),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('chat')
+                  .orderBy('timestamp', descending: true)
+                  .limit(messageLimit)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('$snapshot.error'));
+                } else if (!snapshot.hasData) {
+                  return const Center(
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                var docs = snapshot.data!.docs;
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    var data = docs[i].data() as Map<String, dynamic>;
+                    bool isSentByUser =
+                        true; // Adjust this as per the user ID logic
+
+                    return Align(
+                      alignment: isSentByUser
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 5.0, horizontal: 10.0),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10.0, horizontal: 15.0),
+                        decoration: BoxDecoration(
+                          color: isSentByUser ? primaryColor : accentColor,
+                          borderRadius: BorderRadius.circular(15.0),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: isSentByUser
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${data['message']}',
+                              style: TextStyle(
+                                color: isSentByUser
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                            ),
+                            SizedBox(height: 5),
+                            Text(
+                              formatter.format(
+                                  DateTime.fromMillisecondsSinceEpoch(
+                                      data['timestamp'])),
+                              style: TextStyle(
+                                color: isSentByUser
+                                    ? Colors.white70
+                                    : Colors.black54,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
-                  }
-
-                  final docs = snapshot.data!.docs;
-
-                  return ListView.builder(
-                    itemCount: docs.length,
-                    itemBuilder: (context, i) {
-                      return Card(
-                        color: Colors.white24,
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: ListTile(
-                          leading: DefaultTextStyle.merge(
-                            style: const TextStyle(color: Colors.white),
-                            child: Text(formatter.format(
-                                DateTime.fromMillisecondsSinceEpoch(
-                                    docs[i]['timestamp'] as int))),
-                          ),
-                          title: Text('${docs[i]['message']}'),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                  },
+                );
+              },
             ),
-          ],
-        ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                        hintText: 'Enter your message...'),
+                    onSubmitted: (String value) {
+                      if (value.trim().isEmpty) return;
+                      FirebaseFirestore.instance.collection('chat').add(
+                        {
+                          'message': value,
+                          'timestamp': DateTime.now().millisecondsSinceEpoch
+                        },
+                      );
+                      _controller.clear();
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send, color: primaryColor),
+                  onPressed: () {
+                    String value = _controller.text.trim();
+                    if (value.isEmpty) return;
+                    FirebaseFirestore.instance.collection('chat').add(
+                      {
+                        'message': value,
+                        'timestamp': DateTime.now().millisecondsSinceEpoch
+                      },
+                    );
+                    _controller.clear();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Future<void> _sendMessage(String message) async {
-    await FirebaseFirestore.instance.collection('chat').add(
-      {
-        'message': message,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      },
     );
   }
 }
